@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Joi = require('joi');
 
 const cardSchema = new mongoose.Schema({
     category: { type: String, required: true },
@@ -9,4 +10,15 @@ const cardSchema = new mongoose.Schema({
 
 const Card = mongoose.model('Card', cardSchema);
 
-module.exports = Card;
+function validateCard(card) {
+    const schema = Joi.object({
+        category: Joi.string().required(),
+        question: Joi.string().required(),
+        answer: Joi.string().required(),
+    });
+    return schema.validate(card);
+}
+
+exports.cardSchema = cardSchema;
+exports.Card = Card;
+exports.validate = validateCard;
