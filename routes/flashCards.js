@@ -1,11 +1,10 @@
 const {Card, validateCard} = require('../models/card');
 const {Collection, validateCollection} = require('../models/collection');
 const express = require('express');
-const { response } = require('express');
 const router = express.Router();
 
-//collections functionality
 
+//get all collections
 router.get('/', async (req, res) => {
     try {
         const collections = await Collection.find();
@@ -15,6 +14,7 @@ router.get('/', async (req, res) => {
     }
 });
 
+//get collection by id
 router.get('/:id', async (req, res) => {
     try {
 
@@ -30,6 +30,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+//post a new collection
 router.post('/', async (req, res) => {
     try {
         const {error} = validateCollection(req.body);
@@ -38,6 +39,7 @@ router.post('/', async (req, res) => {
 
         const collection = new Collection({
             title: req.body.title,
+            cards: req.body.title
 
         });
 
@@ -50,22 +52,56 @@ router.post('/', async (req, res) => {
     }
 });
 
-
-//cards functionality
-// router.get('/', async (req, res) => {
-//     try {
-//         const flashcards = await Card.find();
-//         return res.send(flashcards);
-//     }   catch (ex) {
-//         return res.status(500).send(`Internal Server Error: ${ex}`);
-//     }
-// });
-
-//Get one card from a collection
-router.get('/:collectionid/:cardid', async (req, res) => {
+//update a collection
+router.put('/:id', async (req, res) => {
     try {
-        //query for collection
-        //query for specific card in that collection's cards array
+
+        const collection = await Collection.findById(req.params.collectionid);
+        if (!collection) return res.status(400).send(`The collection with id "${req.params.collectionid}" does not exist.`);
+
+        const {error} = validateCollection(req.body);
+        if (error)
+            return res.status(400).send(error);
+
+        collection = await Collection.findByIdAndUpdate(req.params.collectionid, {
+            title: req.body.title,
+            cards: req.body.cards
+        },
+        {new: true},
+        );
+        if (!collection)
+            return res.status(400).send(`The collection with id "${req.params.id}" does not exist.`);
+
+        await collection.save();
+
+        return res.send(collection);
+    }   catch (ex) {
+        return res.status(500).send(`Internal Server Error: ${ex}`);
+    }
+});
+
+//delete a collection
+router.delete('/:id', async (req, res) => {
+    try {
+
+        const collection = await Collection.findById(req.params.collectionid);
+
+        if (!collection)
+            return res.status(400).send(`The collection with id "${req.params.collectionid}" does not exist.`);
+        
+        collection = await collection.remove();
+
+        await collection.save();
+        return res.send(collection);
+
+    }   catch(ex) {
+        return res.status(500).send(`Internal Server Error: ${ex}`);
+    }
+});
+
+//get all cards linked to a collection's id ***************************************************************************************************
+router.get('/:collectionid/cards', async (req, res) => {
+    try {
         const collection = await Collection.findById(req.params.collectionid);
 
         if (!collection)
@@ -83,20 +119,37 @@ router.get('/:collectionid/:cardid', async (req, res) => {
     }
 });
 
+//Get one specific card from a collection
+router.get('/:collectionid/:cardid', async (req, res) => {
+    try {
+        const collection = await Collection.findById(req.params.collectionid);
 
-router.post('/:collectionid/:cards', async (req, res) => {
+        if (!collection)
+            return res.status(400).send(`The collection with id "${req.params.collectionid}" does not exist.`);
+
+        const card = collection.cards.id(req.params.cardid);
+
+        if (!card)
+            return res.status(400).send(`The card with id "${req.params.cardid}" does not exist.`);
+
+        return res.send(card);
+
+    }   catch (ex) {
+        return res.status(500).send(`Internal Server Error: ${ex}`);
+    }
+});
+
+//post a new card to a collection
+router.post('/:collectionid/cards', async (req, res) => {
     try {
         const collection = await Collection.findById(req.params.collectionid);
         if (!collection) return res.status(400).send(`The collection with id "${req.params.collectionid}" does not exist.`);
-
-        const card = await Card.findById(req.params.cardid);
-        if (!card) return res.status(400).send(`The card with id "${req.params.cardid}" does not exist.`);
 
         const {error} = validateCard(req.body);
         if (error)
             return res.status(400).send(error);
 
-        card = new Card({
+        const card = new Card({
             category: req.body.category,
             question: req.body.question,
             answer: req.body.answer,
@@ -112,6 +165,7 @@ router.post('/:collectionid/:cards', async (req, res) => {
     }
 });
 
+//update a specific card in a collection
 router.put('/:collectionid/cards/:cardid', async (req, res) => {
     try {
 
@@ -142,6 +196,7 @@ router.put('/:collectionid/cards/:cardid', async (req, res) => {
     }
 });
 
+//delete a card from a collection
 router.delete('/:collectionid/cards/:cardid', async (req, res) => {
     try {
 
@@ -150,7 +205,7 @@ router.delete('/:collectionid/cards/:cardid', async (req, res) => {
         if (!collection)
             return res.status(400).send(`The collection with id "${req.params.collectionid}" does not exist.`);
 
-        const card = collection.cards.id(req.params.cardid);
+        let card = collection.cards.id(req.params.cardid);
         if (!card) return res.status(400).send(`The card with id "${req.params.cardid}" does not exist.`);
         
         card = await card.remove();
